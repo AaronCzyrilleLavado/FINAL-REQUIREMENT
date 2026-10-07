@@ -1,0 +1,13 @@
+:root { --yo-brand:#b8431f; --yo-dark:#3b1d12; --yo-cream:#fff8f0; }
+body { background: var(--yo-cream); font-family: 'Segoe UI', Arial, sans-serif; }
+.yo-nav { background: var(--yo-dark); }
+.btn-yo { background: var(--yo-brand); color:#fff; border:0; }
+.btn-yo:hover { background:#963514; color:#fff; }
+.card { border:0; box-shadow:0 2px 8px rgba(0,0,0,.08); border-radius:12px; }
+.stat-card .display-6 { font-weight:700; color: var(--yo-brand); }
+.menu-card .card-header { background: var(--yo-brand); color:#fff; border-radius:12px 12px 0 0 !important; }
+.price { font-size:1.25rem; font-weight:700; color: var(--yo-brand); }
+.auth-wrap { min-height:100vh; display:flex; align-items:center; background:linear-gradient(135deg,#3b1d12,#b8431f); }
+.auth-card { max-width:460px; width:100%; margin:auto; }
+.table thead { background: var(--yo-dark); color:#fff; }
+.receipt { max-width:720px; margin:auto; }
