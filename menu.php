@@ -13,34 +13,59 @@ $items = rows(q($sql, $t, $p));
 $cats  = rows(q("SELECT * FROM categories ORDER BY category_name"));
 include 'includes/header.php';
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="page-header">
   <h3 class="mb-0">Our Menu</h3>
-  <?php if ($isAdmin): ?><a class="btn btn-yo btn-sm" href="menu_manage.php">Manage menu</a><?php endif; ?>
+  <?php if ($isAdmin): ?><a class="btn btn-yo btn-sm" href="menu_manage.php">Manage Menu</a><?php endif; ?>
 </div>
-<form class="row g-2 mb-4" method="get">
-  <div class="col-md-5"><input class="form-control" name="search" placeholder="Search dishes..." value="<?= e($search) ?>"></div>
-  <div class="col-md-4"><select class="form-select" name="cat"><option value="0">All categories</option>
-    <?php foreach ($cats as $c): ?><option value="<?= $c['category_id'] ?>" <?= $cat == $c['category_id'] ? 'selected' : '' ?>><?= e($c['category_name']) ?></option><?php endforeach; ?></select></div>
-  <div class="col-md-3"><button class="btn btn-yo">Filter</button> <a class="btn btn-outline-secondary" href="menu.php">Reset</a></div>
+
+<form class="filter-bar auto-filter" method="get">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-6 col-lg-5">
+      <input type="search" class="form-control" name="search" placeholder="Search dishes..." value="<?= e($search) ?>" aria-label="Search dishes">
+    </div>
+    <div class="col-md-4 col-lg-4">
+      <select class="form-select" name="cat" aria-label="Category filter">
+        <option value="0">All categories</option>
+        <?php foreach ($cats as $c): ?>
+          <option value="<?= $c['category_id'] ?>" <?= $cat == $c['category_id'] ? 'selected' : '' ?>>
+            <?= e($c['category_name']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="col-md-2 col-lg-3">
+      <a class="reset-link" href="menu.php">↺ Reset Filter</a>
+    </div>
+  </div>
 </form>
+
 <div class="row g-3">
 <?php foreach ($items as $m): ?>
-  <div class="col-sm-6 col-lg-4"><div class="card menu-card h-100">
-    <div class="card-header d-flex justify-content-between"><span><?= e($m['category_name']) ?></span>
-      <?php if (!$m['is_available']): ?><span class="badge bg-dark">Unavailable</span><?php endif; ?></div>
-    <div class="card-body d-flex flex-column">
-      <h5><?= e($m['item_name']) ?></h5>
-      <p class="text-muted flex-grow-1"><?= e($m['description']) ?></p>
-      <div class="d-flex justify-content-between align-items-center">
-        <span class="price"><?= peso($m['price']) ?></span>
-        <?php if (!$isAdmin && $m['is_available']): ?>
-        <form method="post" action="cart.php" class="d-flex gap-1">
-          <input type="hidden" name="do" value="add"><input type="hidden" name="menu_id" value="<?= $m['menu_id'] ?>">
-          <input type="number" name="qty" value="1" min="1" max="50" class="form-control form-control-sm" style="width:70px">
-          <button class="btn btn-yo btn-sm">Add</button></form>
-        <?php endif; ?>
+  <div class="col-sm-6 col-lg-4">
+    <div class="card menu-card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-2 px-3">
+        <span class="small fw-semibold"><?= e($m['category_name']) ?></span>
+        <?php if (!$m['is_available']): ?><span class="badge bg-dark">Unavailable</span><?php endif; ?>
       </div>
-    </div></div></div>
-<?php endforeach; if (!$items) echo "<p class='text-muted'>No dishes match your search.</p>"; ?>
+      <div class="card-body d-flex flex-column p-3">
+        <h5 class="mb-1"><?= e($m['item_name']) ?></h5>
+        <p class="text-muted flex-grow-1 small mb-3"><?= e($m['description'] ?: 'Delicious and freshly prepared.') ?></p>
+        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+          <span class="price"><?= peso($m['price']) ?></span>
+          <?php if (!$isAdmin && $m['is_available']): ?>
+            <form method="post" action="cart.php" class="d-flex gap-1 align-items-center mb-0">
+              <input type="hidden" name="do" value="add">
+              <input type="hidden" name="menu_id" value="<?= $m['menu_id'] ?>">
+              <input type="number" name="qty" value="1" min="1" max="50" class="form-control form-control-sm text-center" style="width:60px" aria-label="Quantity">
+              <button class="btn btn-yo btn-sm px-3">Add</button>
+            </form>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+<?php endforeach; if (!$items): ?>
+  <div class="col-12"><div class="card p-4 empty-state"><p>No dishes match your search or selected category.</p></div></div>
+<?php endif; ?>
 </div>
 <?php include 'includes/footer.php'; ?>

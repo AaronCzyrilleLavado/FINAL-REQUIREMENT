@@ -6,9 +6,17 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);   // errors become ex
 try {
     $conn = mysqli_connect("localhost", "root", "", "theyos_db");
     mysqli_set_charset($conn, "utf8mb4");
+
+    // Auto-migrate: ensure handled_by exists on orders table
+    $chkCol = mysqli_query($conn, "SHOW COLUMNS FROM orders LIKE 'handled_by'");
+    if ($chkCol && mysqli_num_rows($chkCol) === 0) {
+        mysqli_query($conn, "ALTER TABLE orders ADD COLUMN handled_by INT DEFAULT NULL, ADD CONSTRAINT fk_orders_handled_by FOREIGN KEY (handled_by) REFERENCES accounts(account_id) ON DELETE SET NULL");
+    }
 } catch (mysqli_sql_exception $ex) {
-    error_log($ex->getMessage());
-    die("<h3>Cannot connect to the database.</h3><p>Start MySQL in XAMPP and import <b>sql/theyos_db.sql</b> in phpMyAdmin.</p>");
+    if (!isset($conn) || !$conn) {
+        error_log($ex->getMessage());
+        die("<h3>Cannot connect to the database.</h3><p>Start MySQL in XAMPP and import <b>sql/theyos_db.sql</b> in phpMyAdmin.</p>");
+    }
 }
 
 function e($s)          { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }

@@ -3,7 +3,7 @@
 CREATE DATABASE IF NOT EXISTS theyos_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE theyos_db;
 
-DROP TABLE IF EXISTS inventory_logs, order_items, orders, inventory_items, suppliers, menu_items, categories, accounts;
+DROP TABLE IF EXISTS inventory_logs, order_items, menu_ingredients, orders, inventory_items, suppliers, menu_items, categories, accounts;
 
 CREATE TABLE accounts (
   account_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -46,10 +46,21 @@ CREATE TABLE inventory_items (
   inventory_id INT AUTO_INCREMENT PRIMARY KEY,
   supplier_id INT NOT NULL,
   item_name VARCHAR(100) NOT NULL,
+  item_type ENUM('ingredient','item') NOT NULL DEFAULT 'ingredient',
   unit VARCHAR(20) NOT NULL,
-  quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
-  reorder_level DECIMAL(10,2) NOT NULL DEFAULT 10,
+  quantity DECIMAL(10,3) NOT NULL DEFAULT 0,
+  reorder_level DECIMAL(10,3) NOT NULL DEFAULT 10,
   FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE menu_ingredients (
+  menu_id INT NOT NULL,
+  inventory_id INT NOT NULL,
+  quantity DECIMAL(10,3) NOT NULL,
+  PRIMARY KEY (menu_id, inventory_id),
+  INDEX idx_menu_ingredients_inventory (inventory_id),
+  FOREIGN KEY (menu_id) REFERENCES menu_items(menu_id) ON DELETE CASCADE,
+  FOREIGN KEY (inventory_id) REFERENCES inventory_items(inventory_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 CREATE TABLE inventory_logs (
@@ -57,7 +68,7 @@ CREATE TABLE inventory_logs (
   inventory_id INT NOT NULL,
   account_id INT NOT NULL,
   movement ENUM('IN','OUT') NOT NULL,
-  qty DECIMAL(10,2) NOT NULL,
+  qty DECIMAL(10,3) NOT NULL,
   remarks VARCHAR(150) DEFAULT NULL,
   logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (inventory_id) REFERENCES inventory_items(inventory_id) ON DELETE CASCADE,
@@ -72,8 +83,10 @@ CREATE TABLE orders (
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
   notes VARCHAR(255) DEFAULT NULL,
   void_reason TEXT DEFAULT NULL,
+  handled_by INT DEFAULT NULL,
   ordered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
+  FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE,
+  FOREIGN KEY (handled_by) REFERENCES accounts(account_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE order_items (

@@ -16,9 +16,9 @@ if (!$dateIsValid($from)) { $errors[] = 'Start date is invalid.'; $from = ''; }
 if (!$dateIsValid($to)) { $errors[] = 'End date is invalid.'; $to = ''; }
 if ($from !== '' && $to !== '' && $from > $to) { $errors[] = 'Start date must be before or equal to end date.'; }
 
-$where = ['(a.fullname LIKE ? OR a.username LIKE ? OR a.email LIKE ? OR CAST(o.order_id AS CHAR) LIKE ?)'];
-$types = 'ssss';
-$params = ["%$search%", "%$search%", "%$search%", "%$search%"];
+$where = ['(a.fullname LIKE ? OR a.username LIKE ? OR a.email LIKE ? OR CAST(o.order_id AS CHAR) LIKE ? OR s.fullname LIKE ? OR s.username LIKE ?)'];
+$types = 'ssssss';
+$params = ["%$search%", "%$search%", "%$search%", "%$search%", "%$search%", "%$search%"];
 if (in_array($status, ['Pending', 'Preparing', 'Completed', 'Voided'], true)) {
     $where[] = 'o.status=?'; $types .= 's'; $params[] = $status;
 }
@@ -27,15 +27,22 @@ if ($to !== '') { $where[] = 'o.ordered_at<=?'; $types .= 's'; $params[] = "$to 
 $whereSql = implode(' AND ', $where);
 
 try {
-    $totalRows = (int)(one("SELECT COUNT(*) AS total FROM orders o JOIN accounts a ON a.account_id=o.account_id WHERE $whereSql", $types, $params)['total'] ?? 0);
+    $countSql = "SELECT COUNT(*) AS total FROM orders o 
+                 JOIN accounts a ON a.account_id=o.account_id 
+                 LEFT JOIN accounts s ON s.account_id=o.handled_by 
+                 WHERE $whereSql";
+    $totalRows = (int)(one($countSql, $types, $params)['total'] ?? 0);
     $totalPages = max(1, (int)ceil($totalRows / $pageSize));
     $pageNumber = min($pageNumber, $totalPages);
     $offset = ($pageNumber - 1) * $pageSize;
     $transactions = rows(q(
         "SELECT o.*, a.fullname, a.username, a.email, a.phone, a.address,
+                s.fullname AS staff_name, s.username AS staff_username, s.accesslevel AS staff_role,
          (SELECT GROUP_CONCAT(CONCAT(m.item_name, ' × ', oi.qty) ORDER BY oi.order_item_id SEPARATOR ', ')
           FROM order_items oi JOIN menu_items m ON m.menu_id=oi.menu_id WHERE oi.order_id=o.order_id) AS items_summary
-         FROM orders o JOIN accounts a ON a.account_id=o.account_id
+         FROM orders o 
+         JOIN accounts a ON a.account_id=o.account_id
+         LEFT JOIN accounts s ON s.account_id=o.handled_by
          WHERE $whereSql ORDER BY o.ordered_at DESC, o.order_id DESC LIMIT $pageSize OFFSET $offset",
         $types, $params
     ));
@@ -50,23 +57,26 @@ try {
 include 'includes/header.php';
 ?>
 <div class="transaction-toolbar mb-4">
-  <div><h3 class="mb-1">Transaction History</h3><p class="text-muted mb-0">Order ledger, customer details, totals, and void incident records.</p></div>
+  <div>
+    <h3 class="mb-1">Transaction History</h3>
+    <p class="text-muted mb-0">Complete order ledger, handling staff, customer details, totals, and void records.</p>
+  </div>
   <div class="small text-muted">As of <?= e(date('l, F j, Y')) ?></div>
 </div>
 <div class="row g-3 mb-4">
-  <div class="col-sm-4"><div class="card transaction-summary"><div class="card-body"><div class="small text-muted">Today's transactions</div><div class="display-6 fw-bold"><?= number_format($todayCount) ?></div></div></div></div>
-  <div class="col-sm-4"><div class="card transaction-summary"><div class="card-body"><div class="small text-muted">Today's sales (excluding voids)</div><div class="display-6 fw-bold text-success"><?= peso($todaySales) ?></div></div></div></div>
-  <div class="col-sm-4"><div class="card transaction-summary"><div class="card-body"><div class="small text-muted">Voided today</div><div class="display-6 fw-bold text-secondary"><?= number_format($todayVoided) ?></div></div></div></div>
+  <div class="col-sm-4"><div class="card stat-card transaction-summary"><div class="card-body"><div class="small text-muted">Today's transactions</div><div class="display-6 fw-bold"><?= number_format($todayCount) ?></div></div></div></div>
+  <div class="col-sm-4"><div class="card stat-card transaction-summary"><div class="card-body"><div class="small text-muted">Today's sales (excluding voids)</div><div class="display-6 fw-bold text-success"><?= peso($todaySales) ?></div></div></div></div>
+  <div class="col-sm-4"><div class="card stat-card transaction-summary"><div class="card-body"><div class="small text-muted">Voided today</div><div class="display-6 fw-bold text-secondary"><?= number_format($todayVoided) ?></div></div></div></div>
 </div>
-<form class="card card-body mb-3" method="get">
+<form class="filter-bar auto-filter" method="get">
   <div class="row g-2 align-items-end">
-    <div class="col-lg-4"><label class="form-label" for="search">Search</label><input id="search" class="form-control" name="search" value="<?= e($search) ?>" placeholder="Order number, customer, username, email"></div>
+    <div class="col-lg-4"><label class="form-label" for="search">Search</label><input id="search" type="search" class="form-control" name="search" value="<?= e($search) ?>" placeholder="Order #, customer, staff, email..."></div>
     <div class="col-sm-4 col-lg-2"><label class="form-label" for="status">Status</label><select id="status" class="form-select" name="status">
       <option value="">All statuses</option><?php foreach (['Pending', 'Preparing', 'Completed', 'Voided'] as $option): ?><option value="<?= e($option) ?>" <?= $status === $option ? 'selected' : '' ?>><?= e($option) ?></option><?php endforeach; ?>
     </select></div>
     <div class="col-sm-4 col-lg-2"><label class="form-label" for="from">From</label><input id="from" type="date" class="form-control" name="from" value="<?= e($from) ?>"></div>
     <div class="col-sm-4 col-lg-2"><label class="form-label" for="to">To</label><input id="to" type="date" class="form-control" name="to" value="<?= e($to) ?>"></div>
-    <div class="col-lg-2 d-flex gap-2"><button class="btn btn-yo">Filter</button><a class="btn btn-outline-secondary" href="transactions.php">Reset</a></div>
+    <div class="col-lg-2"><a class="reset-link" href="transactions.php">↺ Reset Filter</a></div>
   </div>
 </form>
 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -74,21 +84,48 @@ include 'includes/header.php';
   <span class="text-muted small">Page <?= $pageNumber ?> of <?= $totalPages ?></span>
 </div>
 <div class="card"><div class="table-responsive">
-  <table class="table table-hover transaction-table mb-0">
-    <thead><tr><th>Transaction</th><th>Customer</th><th>Order</th><th>Items ordered</th><th>Total</th><th>Status</th><th>Void reason / incident</th><th></th></tr></thead>
+  <table class="table table-hover transaction-table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Transaction</th>
+        <th>Customer</th>
+        <th>Processed By (Staff)</th>
+        <th>Order Type</th>
+        <th>Items Ordered</th>
+        <th>Total</th>
+        <th>Status</th>
+        <th>Void Reason</th>
+        <th></th>
+      </tr>
+    </thead>
     <tbody>
     <?php foreach ($transactions as $transaction): ?>
       <tr>
-        <td><span class="transaction-id">#<?= (int)$transaction['order_id'] ?></span><br><small class="text-muted"><?= e(date('M d, Y · h:i A', strtotime($transaction['ordered_at']))) ?></small></td>
-        <td><b><?= e($transaction['fullname']) ?></b><br><small><?= e($transaction['email']) ?></small><br><small class="text-muted"><?= e($transaction['phone'] ?: 'No phone provided') ?></small></td>
+        <td>
+          <span class="transaction-id">#<?= (int)$transaction['order_id'] ?></span><br>
+          <small class="text-muted"><?= e(date('M d, Y · h:i A', strtotime($transaction['ordered_at']))) ?></small>
+        </td>
+        <td>
+          <b><?= e($transaction['fullname']) ?></b><br>
+          <small><?= e($transaction['email']) ?></small><br>
+          <small class="text-muted"><?= e($transaction['phone'] ?: 'No phone') ?></small>
+        </td>
+        <td>
+          <?php if (!empty($transaction['staff_name'])): ?>
+            <b><?= e($transaction['staff_name']) ?></b><br>
+            <span class="badge bg-light text-dark border"><?= e(strtoupper($transaction['staff_role'] ?? 'staff')) ?></span>
+          <?php else: ?>
+            <span class="text-muted small">Online / Pending</span>
+          <?php endif; ?>
+        </td>
         <td><?= e($transaction['order_type']) ?><br><small class="text-muted"><?= e($transaction['username']) ?></small></td>
         <td><?= e($transaction['items_summary'] ?: 'No items recorded') ?></td>
         <td class="fw-semibold text-nowrap"><?= peso($transaction['total']) ?></td>
         <td><?= status_badge($transaction['status']) ?></td>
         <td class="transaction-reason"><?= $transaction['status'] === 'Voided' ? e($transaction['void_reason'] ?: 'No reason recorded') : '<span class="text-muted">—</span>' ?></td>
-        <td><a class="btn btn-sm btn-outline-primary" href="order_view.php?id=<?= (int)$transaction['order_id'] ?>">Details</a></td>
+        <td><a class="btn btn-sm btn-outline-primary" href="order_view.php?id=<?= (int)$transaction['order_id'] ?>">View</a></td>
       </tr>
-    <?php endforeach; if (!$transactions): ?><tr><td colspan="8" class="text-center text-muted py-4">No transactions match these filters.</td></tr><?php endif; ?>
+    <?php endforeach; if (!$transactions): ?><tr><td colspan="9" class="empty-state"><p>No transactions match these filters.</p></td></tr><?php endif; ?>
     </tbody>
   </table>
 </div></div>

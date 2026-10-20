@@ -17,22 +17,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $rem = trim($_POST['remarks'] ?? '');
   if (!in_array($mv, ['IN', 'OUT'], true))
     $errors[] = 'Choose Stock In or Stock Out.';
-  if (!is_numeric($qty) || $qty <= 0)
+  if (!is_numeric($qty) || $qty <= 0 || $qty > 9999999.999)
     $errors[] = 'Quantity must be greater than 0.';
-  if (!$errors && $mv === 'OUT' && $qty > $item['quantity'])
-    $errors[] = 'Cannot remove more than the current stock (' . ($item['quantity'] + 0) . ' ' . $item['unit'] . ').';
   if (!$errors) {
     mysqli_begin_transaction($conn);
     try {
-      $sign = ($mv === 'IN') ? '+' : '-';
-      q("UPDATE inventory_items SET quantity = quantity $sign ? WHERE inventory_id=?", 'di', [$qty, $id]);
-      q("INSERT INTO inventory_logs (inventory_id, account_id, movement, qty, remarks) VALUES (?,?,?,?,?)", 'iisds', [$id, $_SESSION['account_id'], $mv, $qty, $rem]);
-      mysqli_commit($conn);
-      flash('success', "Stock $mv recorded.");
-      redirect("inventory_view.php?id=$id");
+      $lockedItem = one("SELECT quantity FROM inventory_items WHERE inventory_id=? FOR UPDATE", 'i', [$id]);
+      if (!$lockedItem) throw new RuntimeException('Inventory item not found.');
+      if ($mv === 'OUT' && (float)$qty > (float)$lockedItem['quantity']) {
+        mysqli_rollback($conn);
+        $errors[] = 'Cannot remove more than the current stock (' . ($lockedItem['quantity'] + 0) . ' ' . $item['unit'] . ').';
+      }
+      if ($errors) {
+        $logs = [];
+      } else {
+        $sign = ($mv === 'IN') ? '+' : '-';
+        $condition = ($mv === 'OUT') ? ' AND quantity>=?' : '';
+        $types = ($mv === 'OUT') ? 'dii' : 'di';
+        $params = ($mv === 'OUT') ? [$qty, $id, $qty] : [$qty, $id];
+        q("UPDATE inventory_items SET quantity = quantity $sign ? WHERE inventory_id=?$condition", $types, $params);
+        q("INSERT INTO inventory_logs (inventory_id, account_id, movement, qty, remarks) VALUES (?,?,?,?,?)", 'iisds', [$id, $_SESSION['account_id'], $mv, $qty, $rem]);
+        mysqli_commit($conn);
+        flash('success', "Stock $mv recorded.");
+        redirect("inventory_view.php?id=$id");
+      }
     } catch (mysqli_sql_exception $ex) {
       mysqli_rollback($conn);
       $errors[] = db_error_message($ex);
+    } catch (RuntimeException $ex) {
+      mysqli_rollback($conn);
+      $errors[] = $ex->getMessage();
     }
   }
 }
@@ -47,6 +61,7 @@ include 'includes/header.php';
     <div class="card mb-3">
       <div class="card-body">
         <h4><?= e($item['item_name']) ?> <?= $low ? "<span class='badge bg-danger fs-6'>Low stock</span>" : '' ?></h4>
+        <span class="badge bg-<?= $item['item_type'] === 'ingredient' ? 'info text-dark' : 'secondary' ?>"><?= e(ucfirst($item['item_type'])) ?></span>
         <div class="display-6 text-center my-3"><?= e($item['quantity'] + 0) ?> <small
             class="fs-5 text-muted"><?= e($item['unit']) ?></small></div>
         <div class="progress mb-2">
@@ -62,11 +77,11 @@ include 'includes/header.php';
         <h5>Record stock movement</h5>
         <form method="post">
           <div class="row g-2">
-            <div class="col-6"><select name="movement" class="form-select">
+            <div class="col-6"><select name="movement" class="form-select" required>
                 <option value="IN">Stock In</option>
                 <option value="OUT">Stock Out</option>
               </select></div>
-            <div class="col-6"><input name="qty" class="form-control" placeholder="Quantity"></div>
+            <div class="col-6"><input type="number" name="qty" min="0.001" max="9999999.999" step="0.001" class="form-control" placeholder="Quantity" required></div>
             <div class="col-12"><input name="remarks" class="form-control"
                 placeholder="Remarks (e.g. delivery, spoilage)" maxlength="150"></div>
             <div class="col-12"><button class="btn btn-yo w-100">Save movement</button></div>

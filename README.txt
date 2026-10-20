@@ -11,12 +11,19 @@ SETUP (XAMPP)
    Admins can create STAFF accounts in Manage > Accounts. Staff can handle orders and inventory;
    account, menu, category, and supplier management remain admin-only.
    Existing database: run these statements once in phpMyAdmin's SQL tab to enable staff accounts
-   and add void reasons to orders:
+   and add void reasons to orders. The staff-account form will show an error until the first
+   statement has been applied:
    ALTER TABLE accounts MODIFY accesslevel ENUM('admin','staff','user') NOT NULL DEFAULT 'user';
    ALTER TABLE orders MODIFY status ENUM('Pending','Preparing','Completed','Cancelled','Voided') NOT NULL DEFAULT 'Pending';
    ALTER TABLE orders ADD void_reason TEXT DEFAULT NULL AFTER notes;
    UPDATE orders SET status='Voided', void_reason=COALESCE(NULLIF(notes,''),'Previously cancelled; reason was not recorded.') WHERE status='Cancelled';
    ALTER TABLE orders MODIFY status ENUM('Pending','Preparing','Completed','Voided') NOT NULL DEFAULT 'Pending';
+   ALTER TABLE inventory_items ADD item_type ENUM('ingredient','item') NOT NULL DEFAULT 'ingredient' AFTER item_name;
+   ALTER TABLE inventory_items MODIFY quantity DECIMAL(10,3) NOT NULL DEFAULT 0, MODIFY reorder_level DECIMAL(10,3) NOT NULL DEFAULT 10;
+   ALTER TABLE inventory_logs MODIFY qty DECIMAL(10,3) NOT NULL;
+   CREATE TABLE menu_ingredients (menu_id INT NOT NULL, inventory_id INT NOT NULL, quantity DECIMAL(10,3) NOT NULL, PRIMARY KEY (menu_id, inventory_id), INDEX idx_menu_ingredients_inventory (inventory_id), FOREIGN KEY (menu_id) REFERENCES menu_items(menu_id) ON DELETE CASCADE, FOREIGN KEY (inventory_id) REFERENCES inventory_items(inventory_id) ON DELETE RESTRICT) ENGINE=InnoDB;
+   After the schema update, edit each menu item and assign its ingredient quantities. Orders cannot
+   be completed until every ordered menu item has a recipe and sufficient ingredient stock.
 If your MySQL root has a password, edit includes/config.php.
 
 REQUIREMENT CHECKLIST
@@ -27,6 +34,10 @@ REQUIREMENT CHECKLIST
 2. Library files (CRUD + search + filter):
    categories.php, menu_manage.php, suppliers.php, inventory.php, users.php, orders_admin.php,
    transactions.php (admin transaction history with date/status filters and order details)
+   Menu recipes link inventory ingredients to each menu item. Completing an order deducts its
+   recipe ingredients atomically and logs each stock movement; non-ingredient inventory items
+   are tracked separately and are not auto-consumed. Inventory, menu, order, account, supplier,
+   category, and transaction lists update automatically as filters change.
 3. Comprehensive views (not just tables): dashboard.php (stat cards, low stock, best sellers),
    menu.php (card grid), suppliers.php (cards), order_view.php (receipt), inventory_view.php
    (stock gauge + movement history), my_orders.php (order cards), transactions.php (sales ledger)

@@ -28,14 +28,19 @@ function side_link($file, $label, $page, $icon = '') {
         <span></span><span></span><span></span>
       </button>
     </div>
-    <div class="sidebar-user">
+    <!-- Profile link directly on the user's name & avatar -->
+    <a class="sidebar-user" href="profile.php" title="Manage Account &amp; Profile">
       <span class="user-avatar"><?= e(strtoupper(substr($_SESSION['fullname'], 0, 1))) ?></span>
-      <span class="side-label user-details"><b><?= e($_SESSION['fullname']) ?></b><small><?= e(ucfirst($_SESSION['accesslevel'])) ?></small></span>
-    </div>
+      <span class="side-label user-details">
+        <b><?= e($_SESSION['fullname']) ?></b>
+        <small><?= e(ucfirst($_SESSION['accesslevel'])) ?> · My Profile ⚙</small>
+      </span>
+    </a>
     <nav class="sidebar-nav">
       <div class="nav-section">
         <div class="nav-section-title side-label">Overview</div>
         <?php side_link('dashboard.php', 'Dashboard', $page, '⌂'); ?>
+        <?php side_link('profile.php', 'My Profile', $page, '⚙'); ?>
       </div>
       <?php if ($isAdmin || $isStaff): ?>
         <div class="nav-section">
@@ -76,7 +81,7 @@ function side_link($file, $label, $page, $icon = '') {
         <span></span><span></span><span></span>
       </button>
       <span class="fw-bold">THE-YO'S</span>
-      <span class="small text-muted"><?= e(ucfirst($_SESSION['accesslevel'])) ?></span>
+      <a href="profile.php" class="small text-muted text-decoration-none">⚙ <?= e(ucfirst($_SESSION['accesslevel'])) ?></a>
     </div>
     <main class="page-content container-fluid py-4">
 <?php if (!empty($_SESSION['flash'])): $f = $_SESSION['flash']; unset($_SESSION['flash']); ?>
