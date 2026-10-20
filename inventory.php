@@ -1,5 +1,5 @@
 <?php
-require 'includes/config.php'; require_admin();
+require 'includes/config.php'; require_staff_or_admin();
 $title = 'Inventory'; $errors = []; $action = $_GET['action'] ?? 'list';
 $row = ['inventory_id' => '', 'supplier_id' => '', 'item_name' => '', 'unit' => '', 'quantity' => '0', 'reorder_level' => '10'];
 

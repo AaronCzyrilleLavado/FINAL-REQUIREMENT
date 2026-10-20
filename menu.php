@@ -1,5 +1,6 @@
 <?php
 require 'includes/config.php'; require_login();
+if ($_SESSION['accesslevel'] === 'staff') { flash('warning', 'The menu is available to customer accounts.'); redirect('dashboard.php'); }
 $title = 'Menu'; $isAdmin = $_SESSION['accesslevel'] === 'admin';
 $search = trim($_GET['search'] ?? ''); $cat = (int)($_GET['cat'] ?? 0);
 $sql = "SELECT m.*, c.category_name FROM menu_items m JOIN categories c ON c.category_id=m.category_id WHERE 1=1";

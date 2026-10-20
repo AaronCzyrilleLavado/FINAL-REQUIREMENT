@@ -1,6 +1,6 @@
 <?php
 require 'includes/config.php'; require_login();
-if ($_SESSION['accesslevel'] === 'admin') { flash('warning', 'Administrators cannot place orders.'); redirect('dashboard.php'); }
+if ($_SESSION['accesslevel'] !== 'user') { flash('warning', 'Staff and administrators cannot place orders.'); redirect('dashboard.php'); }
 $title = 'Cart'; $errors = [];
 $cart = $_SESSION['cart'] ?? [];
 

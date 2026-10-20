@@ -13,7 +13,7 @@ CREATE TABLE accounts (
   phone VARCHAR(20) DEFAULT NULL,
   address VARCHAR(255) DEFAULT NULL,
   password VARCHAR(255) NOT NULL,
-  accesslevel ENUM('admin','user') NOT NULL DEFAULT 'user',
+  accesslevel ENUM('admin','staff','user') NOT NULL DEFAULT 'user',
   -- generated column + UNIQUE = the database itself allows only ONE admin
   admin_flag TINYINT GENERATED ALWAYS AS (CASE WHEN accesslevel='admin' THEN 1 ELSE NULL END) STORED UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -68,9 +68,10 @@ CREATE TABLE orders (
   order_id INT AUTO_INCREMENT PRIMARY KEY,
   account_id INT NOT NULL,
   order_type ENUM('Dine-in','Take-out','Delivery') NOT NULL DEFAULT 'Dine-in',
-  status ENUM('Pending','Preparing','Completed','Cancelled') NOT NULL DEFAULT 'Pending',
+  status ENUM('Pending','Preparing','Completed','Voided') NOT NULL DEFAULT 'Pending',
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
   notes VARCHAR(255) DEFAULT NULL,
+  void_reason TEXT DEFAULT NULL,
   ordered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

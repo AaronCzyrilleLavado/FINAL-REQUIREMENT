@@ -22,6 +22,10 @@ function require_admin() {
     require_login();
     if ($_SESSION['accesslevel'] !== 'admin') { flash('danger', 'Access denied. Administrators only.'); redirect('dashboard.php'); }
 }
+function require_staff_or_admin() {
+    require_login();
+    if (!in_array($_SESSION['accesslevel'], ['admin', 'staff'], true)) { flash('danger', 'Access denied. Staff access is required.'); redirect('dashboard.php'); }
+}
 
 // ---------- Prepared-statement helpers ----------
 function q($sql, $types = '', $params = []) {          // run a prepared query, returns the statement
@@ -36,7 +40,7 @@ function one($sql, $types = '', $params = []) { $r = rows(q($sql, $types, $param
 function val($sql) { global $conn; $r = mysqli_fetch_row(mysqli_query($conn, $sql)); return $r[0] ?? 0; }
 
 function status_badge($s) {
-    $map = ['Pending' => 'warning text-dark', 'Preparing' => 'info text-dark', 'Completed' => 'success', 'Cancelled' => 'secondary'];
+    $map = ['Pending' => 'warning text-dark', 'Preparing' => 'info text-dark', 'Completed' => 'success', 'Voided' => 'secondary'];
     return "<span class='badge bg-" . ($map[$s] ?? 'dark') . "'>" . e($s) . "</span>";
 }
 function db_error_message($ex, $fkMessage = 'This record is in use by other records and cannot be deleted.') {

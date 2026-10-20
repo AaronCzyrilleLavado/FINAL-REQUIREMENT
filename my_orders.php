@@ -1,18 +1,18 @@
 <?php
 require 'includes/config.php'; require_login();
-if ($_SESSION['accesslevel'] === 'admin') { redirect('orders_admin.php'); }
+if ($_SESSION['accesslevel'] !== 'user') { redirect('orders_admin.php'); }
 $title = 'My Orders'; $uid = (int)$_SESSION['account_id'];
 $status = $_GET['status'] ?? '';
 $sql = "SELECT o.*, (SELECT COUNT(*) FROM order_items WHERE order_id=o.order_id) AS lines_count FROM orders o WHERE o.account_id=?";
 $t = 'i'; $p = [$uid];
-if (in_array($status, ['Pending', 'Preparing', 'Completed', 'Cancelled'], true)) { $sql .= " AND o.status=?"; $t .= 's'; $p[] = $status; }
+if (in_array($status, ['Pending', 'Preparing', 'Completed', 'Voided'], true)) { $sql .= " AND o.status=?"; $t .= 's'; $p[] = $status; }
 $orders = rows(q($sql . " ORDER BY o.ordered_at DESC", $t, $p));
 include 'includes/header.php';
 ?>
 <div class="d-flex justify-content-between mb-3"><h3>My Orders</h3>
   <form method="get"><select name="status" class="form-select" onchange="this.form.submit()">
     <option value="">All statuses</option>
-    <?php foreach (['Pending', 'Preparing', 'Completed', 'Cancelled'] as $s): ?><option <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select></form></div>
+    <?php foreach (['Pending', 'Preparing', 'Completed', 'Voided'] as $s): ?><option <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select></form></div>
 <div class="row g-3">
 <?php foreach ($orders as $o): ?>
   <div class="col-md-6"><div class="card"><div class="card-body">
